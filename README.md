@@ -1,32 +1,94 @@
 # codi-rs
 
-Rust implementation of Codi - Your AI coding wingman.
+**Codi** - Your AI coding wingman, reimagined in Rust.
+
+A high-performance terminal AI assistant supporting Claude, OpenAI, Ollama, and more. Built with Rust for speed, safety, and reliability.
+
+## Features
+
+- 🤖 **Multi-Provider Support** - Claude, OpenAI, Ollama, and OpenAI-compatible APIs
+- 🛠️ **Powerful Tool System** - File operations, shell commands, grep, glob, and more
+- 🧠 **RAG System** - Semantic code search with vector embeddings
+- 🔍 **Symbol Index** - Tree-sitter based code navigation
+- 👥 **Multi-Agent** - Parallel workers with IPC permission bubbling
+- 🖥️ **Terminal UI** - Rich ratatui-based interactive interface
+- ⚡ **High Performance** - Native speed with Rust's zero-cost abstractions
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/laynepenney/codi-rs.git
+cd codi-rs
+
+# Build
+cargo build --release
+
+# Run
+cargo run
+```
+
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/laynepenney/codi-rs.git
+cd codi-rs
+cargo install --path .
+```
+
+### Prerequisites
+
+- Rust 1.85 or later
+- At least one AI provider API key (Anthropic, OpenAI, or Ollama for local)
+
+## Configuration
+
+Set your API keys:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+# or
+export OPENAI_API_KEY=sk-...
+```
+
+Or create a `.codi.yaml` config file:
+
+```yaml
+provider: anthropic
+model: claude-sonnet-4-20250514
+auto_approve:
+  - read_file
+  - glob
+  - grep
+```
+
+## Usage
+
+```bash
+# Start interactive session
+codi
+
+# Run with specific provider
+codi --provider openai --model gpt-4o
+
+# Run with local model
+codi --provider ollama --model llama3.2
+```
+
+## Documentation
+
+- [ROADMAP.md](./docs/ROADMAP.md) - Feature roadmap and architecture
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - How to contribute
+- [SECURITY.md](./SECURITY.md) - Security policies and reporting
+- [CHANGELOG.md](./CHANGELOG.md) - Version history
 
 ## Status
 
-Core feature parity with the TypeScript CLI is in place, and ongoing work is tracked in `docs/ROADMAP.md`.
+Core feature parity with the TypeScript CLI is complete. See `docs/ROADMAP.md` for ongoing work.
 
-### What's Now Complete:
-
-✅ **Foundation & Core Infrastructure** - Complete Rust foundation with proper error handling, configuration, and CLI interface
-
-✅ **Tool System** - Full file operations, shell commands, grep, glob, image analysis, and more
-
-✅ **Multi-Provider Support** - Anthropic, OpenAI, Ollama, and OpenAI-compatible APIs with streaming and tool use
-
-✅ **Agent Loop** - Complete agentic orchestration with tool execution, context management, and streaming responses
-
-✅ **Symbol Index** - Tree-sitter based multi-language symbol extraction with fuzzy search and incremental indexing
-
-✅ **RAG System** - Vector search using embeddings for semantic code search with SQLite storage  
-
-✅ **Terminal UI** - Full ratatui-based interactive interface with sessions, streaming, and rich command support
-
-✅ **Multi-Agent Orchestration** - Git worktree-based parallel workers with IPC permission bubbling
-
-✅ **Test Suite** - Comprehensive 500+ test suite ensuring reliability across all components
-
-## Phase Status
+### Completed Phases
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -46,184 +108,107 @@ Core feature parity with the TypeScript CLI is in place, and ongoing work is tra
 ```rust
 use codi::{anthropic, openai, ollama, create_provider_from_env};
 
-// Auto-detect from environment (checks ANTHROPIC_API_KEY, OPENAI_API_KEY)
+// Auto-detect from environment
 let provider = create_provider_from_env()?;
 
-// Or use convenience functions
+// Or use specific provider
 let claude = anthropic("claude-sonnet-4-20250514")?;
 let gpt = openai("gpt-4o")?;
 let local = ollama("llama3.2");
 ```
 
 **Supported Providers:**
-- **Anthropic** - Full Claude API with streaming, tool use, vision, extended thinking
-- **OpenAI** - GPT models with streaming and tool use
+- **Anthropic** - Full Claude API with streaming, tool use, vision
+- **OpenAI** - GPT models with streaming and tool use  
 - **Ollama** - Local models, no API key required
 - **Any OpenAI-compatible API** - Azure, Together, Groq, etc.
 
 ### Agent Loop
 
 ```rust
-use codi::agent::{Agent, AgentConfig, AgentOptions, AgentCallbacks};
+use codi::agent::{Agent, AgentConfig, AgentOptions};
 use codi::tools::ToolRegistry;
 use std::sync::Arc;
 
-// Create provider and tool registry
 let provider = anthropic("claude-sonnet-4-20250514")?;
 let registry = Arc::new(ToolRegistry::with_defaults());
 
-// Create agent
 let mut agent = Agent::new(AgentOptions {
     provider,
     tool_registry: registry,
     system_prompt: Some("You are a helpful assistant.".to_string()),
     config: AgentConfig::default(),
-    callbacks: AgentCallbacks::default(),
+    callbacks: Some(callbacks),
 });
 
-// Chat - handles the full agentic loop (message -> model -> tools -> repeat)
-let response = agent.chat("Read the README and summarize it").await?;
+// Chat with streaming
+agent.chat("Hello!", |chunk| {
+    print!("{}", chunk);
+}).await?;
 ```
-
-**Agent Features:**
-- Iterative tool calling loop
-- Tool confirmation for destructive operations
-- Auto-approval configuration
-- Consecutive error tracking
-- Turn statistics (tokens, costs, duration)
 
 ### Tools
 
-All core file and shell tools are implemented:
-- `read_file`, `write_file`, `edit_file` - File operations
-- `glob`, `grep` - File search (globset, ripgrep-based)
-- `bash` - Shell execution with timeout
-- `list_directory` - Directory listing
+Built-in tools include:
+- `read_file` - Read file contents
+- `write_file` - Write or overwrite files
+- `edit_file` - Edit files with search/replace
+- `glob` - Find files by pattern
+- `grep` - Search file contents
+- `bash` - Execute shell commands
+- `list_directory` - Browse directories
+- `rag_search` - Semantic code search
+- `symbol_index` - Find and navigate code symbols
 
-### Advanced Code Navigation Tools (Completed!)
+### Terminal UI
 
-Newly implemented advanced tools that are now available:
+Full ratatui-based interface with:
+- Session management
+- Streaming responses
+- File browser with preview
+- Command palette
+- Git integration
+- Diff viewer
 
-**Symbol Index Tools:**
-- `find_symbol` - Search for symbols across the codebase with fuzzy matching
-- `manage_symbols` - Manage symbol index (rebuild, stats, incremental updates)
-
-**RAG Semantic Search:**
-- `rag_search` - Search using natural language queries with vector embeddings  
-- `manage_rag` - Manage RAG vector index (build, stats, incremental updates)
-
-These tools enable:
-- Finding functions, classes, and methods by name across large codebases
-- Semantic code search using natural language queries
-- Advanced code navigation for refactoring and understanding
-
-### Telemetry
-
-Built-in observability infrastructure:
-- Operation timing metrics
-- Token usage tracking
-- Tracing with correlation IDs
-- Feature-gated (`--features telemetry`)
-
-## Building
+## Development
 
 ```bash
-cargo build            # Debug build
-cargo build --release  # Optimized release build
-cargo test             # Run tests (142 tests)
-cargo bench            # Run benchmarks
+# Run tests
+cargo test
+
+# Run benchmarks
+cargo bench
+
+# Build for production
+cargo build --release
+
+# Run linter
+cargo clippy
+
+# Format code
+cargo fmt
 ```
 
-## Usage
-
-```bash
-# Show version
-codi --version
-
-# Show help
-codi --help
-
-# Show configuration
-codi config show
-
-# Show example configuration
-codi config example
-
-# Initialize config file
-codi init
-
-# Run a prompt (requires agent loop - Phase 3)
-codi -P "explain this code" src/main.rs
-```
-
-## Architecture
-
-```
-src/
-├── main.rs           # CLI entry point (clap)
-├── lib.rs            # Library exports
-├── types.rs          # Core types (Message, ToolDefinition, Provider, etc.)
-├── error.rs          # Error types (thiserror)
-├── agent/            # Core agentic orchestration
-│   ├── mod.rs        # Agent struct and chat loop
-│   └── types.rs      # AgentConfig, callbacks, stats
-├── config/           # Configuration module
-│   ├── mod.rs        # Module exports and load_config()
-│   ├── types.rs      # Config type definitions
-│   ├── loader.rs     # File loading
-│   └── merger.rs     # Config merging with precedence
-├── providers/        # AI provider implementations
-│   ├── mod.rs        # Factory functions, ProviderType
-│   ├── anthropic.rs  # Anthropic Claude provider
-│   └── openai.rs     # OpenAI-compatible provider
-├── tools/            # Tool implementations
-│   ├── mod.rs        # Tool traits and utilities
-│   ├── registry.rs   # Tool registration and dispatch
-│   └── handlers/     # Individual tool handlers
-└── telemetry/        # Observability infrastructure
-    ├── mod.rs        # Module exports
-    ├── metrics.rs    # Global metrics collection
-    ├── spans.rs      # Span utilities
-    └── init.rs       # Telemetry initialization
-```
-
-## Configuration
-
-Configuration files are searched in this order:
-1. `.codi.json`
-2. `.codi/config.json`
-3. `codi.config.json`
-
-Additionally:
-- Global config: `~/.codi/config.json`
-- Local overrides: `.codi.local.json`
-
-Precedence (highest to lowest):
-1. CLI options
-2. Local config
-3. Workspace config
-4. Global config
-5. Default values
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | Anthropic API key (auto-selects Anthropic provider) |
-| `OPENAI_API_KEY` | OpenAI API key (auto-selects OpenAI provider) |
-| `CODI_PROVIDER` | Override provider selection (anthropic, openai, ollama) |
-| `CODI_MODEL` | Override default model |
-
-## Benchmarks
-
-Run benchmarks with:
-
-```bash
-cargo bench --bench providers  # Provider operations
-cargo bench --bench tools      # Tool operations
-cargo bench --bench config     # Config loading
-```
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed contribution guidelines.
 
 ## License
 
-AGPL-3.0-or-later
+Codi is dual-licensed under:
+
+- **AGPL-3.0** - Open source license (see [LICENSE](./LICENSE))
+- **Commercial License** - For proprietary use (see [LICENSING.md](./LICENSING.md))
+
+## Security
+
+For security issues, please email [security@codi.dev](mailto:security@codi.dev) instead of using the issue tracker.
+
+See [SECURITY.md](./SECURITY.md) for more details.
+
+## Community
+
+- GitHub Issues: https://github.com/laynepenney/codi-rs/issues
+- Discussions: https://github.com/laynepenney/codi-rs/discussions
+
+---
+
+**Built with ❤️ and 🦀 in Rust**
