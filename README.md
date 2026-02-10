@@ -200,7 +200,7 @@ Codi is dual-licensed under:
 
 ## Security
 
-For security issues, please email [security@codi.dev](mailto:security@codi.dev) instead of using the issue tracker.
+For security issues, please email [security@layne.pro](mailto:security@layne.pro) instead of using the issue tracker.
 
 See [SECURITY.md](./SECURITY.md) for more details.
 
