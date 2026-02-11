@@ -346,6 +346,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_read_file_offset_zero_rejected() {
+        let temp = NamedTempFile::new().unwrap();
+
+        let handler = ReadFileHandler;
+        let result = handler
+            .execute(serde_json::json!({
+                "file_path": temp.path().to_str().unwrap(),
+                "offset": 0
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_limit_zero_rejected() {
+        let temp = NamedTempFile::new().unwrap();
+
+        let handler = ReadFileHandler;
+        let result = handler
+            .execute(serde_json::json!({
+                "file_path": temp.path().to_str().unwrap(),
+                "limit": 0
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_offset_exceeds_length_rejected() {
+        let mut temp = NamedTempFile::new().unwrap();
+        writeln!(temp, "line1").unwrap();
+
+        let handler = ReadFileHandler;
+        let result = handler
+            .execute(serde_json::json!({
+                "file_path": temp.path().to_str().unwrap(),
+                "offset": 10
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
     async fn test_read_file_crlf() {
         let mut temp = NamedTempFile::new().unwrap();
         temp.write_all(b"line1\r\nline2\r\n").unwrap();
