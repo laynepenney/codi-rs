@@ -2,7 +2,7 @@
 
 **Objective:** Bring codi/codi-rs from 88% to 100% production readiness  
 **Timeline:** 2-3 weeks  
-**Current Branch:** `feat/production-readiness-phase-3`  
+**Current Branch:** `main`  
 **Priority:** Fix critical panics first, then polish
 
 ---
@@ -112,7 +112,7 @@ pub enum IpcError {
 - [x] Zero `unwrap()` calls in production code paths
 - [x] All errors properly propagated with context
 - [x] No behavioral regressions
-- [x] All 516 tests pass
+- [x] All tests pass in CI matrix (ubuntu/macos/windows)
 
 ---
 
@@ -155,7 +155,7 @@ pub enum IpcError {
 - **Branch:** feat/production-readiness-phase-2
 - **PR:** #285
 - **Files Changed:** 5 (+554/-232 lines)
-- **Tests:** All 516 passing
+- **Tests:** All tests passing in CI
 - **Build:** Zero warnings
 
 ---
@@ -183,12 +183,17 @@ pub enum IpcError {
 | Send pong not connected | ✅ Added | `client.rs` |
 | Request permission not connected | ✅ Added | `client.rs` |
 | Request permission cancelled | ✅ Added | `client.rs` |
+| Handshake timeout fallback | ✅ Added (unix) | `client.rs` |
+| Permission timeout path coverage | ✅ Added (unix) | `client.rs` |
+| Graceful disconnect | ✅ Added (unix) | `client.rs` |
+| Invalid path bind (transport/server) | ✅ Added (unix) | `transport.rs`, `server.rs` |
+| Read-file not found (portable path) | ✅ Added | `read_file.rs` |
+| Write permission denied (unix) | ✅ Added | `write_file.rs` |
+| Terminal capability detection robustness | ✅ Added | `tui/input/enhanced.rs` |
 
 **Remaining IPC Tests:**
 - Read/write failures
 - Connection timeout
-- Handshake failure
-- Permission timeout
 - Channel closed
 
 **Provider API Failure Tests (PENDING):**
@@ -355,26 +360,26 @@ Create GitHub issues for:
 ### Phase 1: Production Panics (COMPLETE)
 - **Date:** 2026-02-07
 - **Branch:** feat/production-readiness-phase-1
-- **PR:** #284
-- **Commits:** 5
+- **PR:** historical branch (pre-codi-rs PR numbering alignment)
+- **Commits:** historical
 - **Files Changed:** 9 (+473/-43 lines)
-- **Tests:** All 516 passing
+- **Tests:** All tests passing at completion
 
 ### Phase 2: Code Quality (COMPLETE)
 - **Date:** 2026-02-08
 - **Branch:** feat/production-readiness-phase-2
-- **PR:** #285
-- **Commits:** 2
+- **PR:** historical branch (pre-codi-rs PR numbering alignment)
+- **Commits:** historical
 - **Files Changed:** 5 (+554/-232 lines)
-- **Tests:** All 516 passing
+- **Tests:** All tests passing in CI
 - **Status:** Zero warnings, 3 HIGH TODOs resolved
 
 ### Phase 3: Testing (IN PROGRESS)
-- **Date:** 2026-02-08
-- **Branch:** feat/production-readiness-phase-3
-- **PR:** Pending
-- **Progress:** 12 IPC error tests added
-- **Tests:** 516 passing (plus new error path tests)
+- **Date:** 2026-02-11
+- **Branch:** feat/codi-rs-ci-matrix
+- **PR:** #6 (merged)
+- **Progress:** Cross-platform CI matrix + Windows-safe/portable IPC and tool handler tests
+- **Tests:** Pass on ubuntu/macos/windows
 
 ---
 
@@ -389,6 +394,6 @@ Create GitHub issues for:
 
 ---
 
-**Last Updated:** 2026-02-08  
+**Last Updated:** 2026-02-11  
 **Author:** Codi AI Assistant  
-**Current Branch:** feat/production-readiness-phase-3
+**Current Branch:** main
