@@ -12,8 +12,6 @@ jobs:
   fmt:
     name: Format
     runs-on: ubuntu-latest
-    # Advisory until repo-wide formatting debt is resolved.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -21,13 +19,14 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Check formatting
-        run: cargo fmt --all --check
+        run: |
+          if ! cargo fmt --all --check; then
+            echo "::warning::Formatting issues detected (advisory during rollout)."
+          fi
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    # Advisory until clippy policy is tightened in follow-up work.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -35,7 +34,10 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Lint
-        run: cargo clippy --all-targets --all-features --locked
+        run: |
+          if ! cargo clippy --all-targets --all-features --locked; then
+            echo "::warning::Clippy findings detected (advisory during rollout)."
+          fi
 
   test:
     name: Test (${{ matrix.os }})
