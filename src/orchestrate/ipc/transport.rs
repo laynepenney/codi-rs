@@ -123,8 +123,6 @@ fn pipe_name_from_path(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::Duration;
-
     #[cfg(unix)]
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -148,11 +146,17 @@ mod tests {
         });
 
         let mut client = connect(pipe_path).await.expect("connect failed");
-        client.write_all(b"hello").await.expect("client write failed");
+        client
+            .write_all(b"hello")
+            .await
+            .expect("client write failed");
         client.flush().await.expect("client flush failed");
 
         let mut buf = [0u8; 5];
-        client.read_exact(&mut buf).await.expect("client read failed");
+        client
+            .read_exact(&mut buf)
+            .await
+            .expect("client read failed");
         assert_eq!(&buf, b"world");
 
         server_task.await.expect("server task failed");
@@ -168,14 +172,17 @@ mod tests {
         let _ = std::fs::remove_file(&fake_socket);
 
         let result = connect(&fake_socket).await;
-        assert!(result.is_err(), "Should fail to connect to non-existent socket");
+        assert!(
+            result.is_err(),
+            "Should fail to connect to non-existent socket"
+        );
 
         #[cfg(unix)]
         {
             if let Err(err) = result {
                 assert!(
-                    err.kind() == io::ErrorKind::NotFound ||
-                    err.kind() == io::ErrorKind::ConnectionRefused,
+                    err.kind() == io::ErrorKind::NotFound
+                        || err.kind() == io::ErrorKind::ConnectionRefused,
                     "Expected NotFound or ConnectionRefused, got {:?}",
                     err.kind()
                 );
@@ -185,8 +192,7 @@ mod tests {
         {
             if let Err(err) = result {
                 assert!(
-                    err.kind() == io::ErrorKind::NotFound ||
-                    err.raw_os_error() == Some(2), // ERROR_FILE_NOT_FOUND
+                    err.kind() == io::ErrorKind::NotFound || err.raw_os_error() == Some(2), // ERROR_FILE_NOT_FOUND
                     "Expected NotFound error, got {:?}",
                     err
                 );
@@ -197,66 +203,91 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn test_read_failure() {
-        use tokio::net::UnixStream;
-        use std::os::unix::net::UnixListener as StdUnixListener;
+        use tokio::net::{UnixListener, UnixStream};
 
         let temp_dir = tempfile::tempdir().unwrap();
         let socket_path = temp_dir.path().join("test.sock");
 
-        // Create a listener using std (non-async) to accept connections
-        let listener = StdUnixListener::bind(&socket_path).unwrap();
-        listener.set_nonblocking(true).unwrap();
-
-        let server_task = std::thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("Server failed to accept");
-            // Write partial data then close
-            use std::io::Write;
-            stream.write_all(b"partial").expect("Server failed to write");
-            // Close immediately - this should cause read failure
-            drop(stream);
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let server_task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("Server failed to accept");
+            stream
+                .write_all(b"partial")
+                .await
+                .expect("Server failed to write");
+            stream.shutdown().await.expect("Server failed to shutdown");
         });
 
-        // Connect using tokio's async UnixStream
-        let mut stream = UnixStream::connect(&socket_path).await.expect("Client failed to connect");
-        let mut buf = [0u8; 10];
+        let mut stream = UnixStream::connect(&socket_path)
+            .await
+            .expect("Client failed to connect");
+        let mut payload = Vec::new();
+        stream
+            .read_to_end(&mut payload)
+            .await
+            .expect("Client failed to read to EOF");
+        assert_eq!(payload, b"partial");
 
-        // First read should succeed partially
-        let n = stream.read(&mut buf).await.unwrap();
-        assert_eq!(n, 7); // "partial" is 7 bytes
-
-        // Second read should return 0 (EOF) - not an error but indicates closed
-        let n = stream.read(&mut buf).await.unwrap();
+        let mut buf = [0u8; 1];
+        let n = stream
+            .read(&mut buf)
+            .await
+            .expect("Client second read failed");
         assert_eq!(n, 0);
 
-        server_task.join().unwrap();
+        server_task.await.unwrap();
     }
 
     #[cfg(unix)]
     #[tokio::test]
     async fn test_write_failure() {
-        use tokio::net::UnixStream;
-        use std::os::unix::net::UnixListener as StdUnixListener;
+        use tokio::net::{UnixListener, UnixStream};
+        use tokio::sync::oneshot;
 
         let temp_dir = tempfile::tempdir().unwrap();
         let socket_path = temp_dir.path().join("test_write.sock");
 
-        let listener = StdUnixListener::bind(&socket_path).unwrap();
-        listener.set_nonblocking(true).unwrap();
-
-        let server_task = std::thread::spawn(move || {
-            let (stream, _) = listener.accept().expect("Server failed to accept");
-            // Close immediately without reading - peer write may fail
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (closed_tx, closed_rx) = oneshot::channel();
+        let server_task = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.expect("Server failed to accept");
             drop(stream);
+            let _ = closed_tx.send(());
         });
 
-        let mut stream = UnixStream::connect(&socket_path).await.expect("Client failed to connect");
+        let mut stream = UnixStream::connect(&socket_path)
+            .await
+            .expect("Client failed to connect");
+        closed_rx.await.expect("Server close notification failed");
 
-        // Try to write after server closes - this may or may not error
-        // depending on timing, but we should at least see EOF on subsequent read
-        let _ = stream.write_all(b"test data").await;
-        let _ = stream.flush().await;
+        let write_res = stream.write_all(b"test data").await;
+        let flush_res = stream.flush().await;
 
-        server_task.join().unwrap();
+        match (write_res, flush_res) {
+            (Ok(_), Ok(_)) => {
+                let mut buf = [0u8; 1];
+                let n = stream
+                    .read(&mut buf)
+                    .await
+                    .expect("Read after remote close should not error");
+                assert_eq!(n, 0, "Expected EOF after remote close");
+            }
+            (Err(err), _) | (_, Err(err)) => {
+                assert!(
+                    matches!(
+                        err.kind(),
+                        io::ErrorKind::BrokenPipe
+                            | io::ErrorKind::ConnectionReset
+                            | io::ErrorKind::ConnectionAborted
+                            | io::ErrorKind::NotConnected
+                    ),
+                    "Unexpected write/flush error kind: {:?}",
+                    err.kind()
+                );
+            }
+        }
+
+        server_task.await.unwrap();
     }
 
     #[tokio::test]
