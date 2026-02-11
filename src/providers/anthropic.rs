@@ -1067,4 +1067,60 @@ mod tests {
         assert!(matches!(context_error, ProviderError::ContextWindowExceeded { .. }));
         assert!(context_error.to_string().contains("250000"));
     }
+
+    #[test]
+    fn test_handle_error_response_maps_known_types() {
+        let provider = AnthropicProvider::new(
+            "test-key",
+            "claude-sonnet-4-20250514",
+            "https://api.anthropic.com",
+            ProviderConfig::default(),
+        );
+
+        let auth = provider.handle_error_response(
+            401,
+            r#"{"error":{"type":"authentication_error","message":"invalid auth"}}"#,
+        );
+        assert!(matches!(auth, ProviderError::AuthError(msg) if msg == "invalid auth"));
+
+        let overloaded = provider.handle_error_response(
+            529,
+            r#"{"error":{"type":"overloaded_error","message":"busy"}}"#,
+        );
+        assert!(matches!(overloaded, ProviderError::RateLimited(msg) if msg == "API overloaded"));
+
+        let model_not_found = provider.handle_error_response(
+            400,
+            r#"{"error":{"type":"invalid_request_error","message":"model does not exist"}}"#,
+        );
+        assert!(matches!(
+            model_not_found,
+            ProviderError::ModelNotFound(msg) if msg == "model does not exist"
+        ));
+    }
+
+    #[test]
+    fn test_handle_error_response_falls_back_for_unrecognized_or_plain_body() {
+        let provider = AnthropicProvider::new(
+            "test-key",
+            "claude-sonnet-4-20250514",
+            "https://api.anthropic.com",
+            ProviderConfig::default(),
+        );
+
+        let unknown = provider.handle_error_response(
+            422,
+            r#"{"error":{"type":"new_error_type","message":"unprocessable payload"}}"#,
+        );
+        assert!(matches!(
+            unknown,
+            ProviderError::ApiError { message, status_code: Some(422) } if message == "unprocessable payload"
+        ));
+
+        let plain = provider.handle_error_response(503, "service unavailable");
+        assert!(matches!(
+            plain,
+            ProviderError::ApiError { message, status_code: Some(503) } if message == "service unavailable"
+        ));
+    }
 }

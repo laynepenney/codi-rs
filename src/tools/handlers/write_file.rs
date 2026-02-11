@@ -234,4 +234,37 @@ mod tests {
         assert!(result.is_err());
         // Could be IoError or PermissionDenied depending on the system
     }
+
+    #[tokio::test]
+    async fn test_write_file_missing_content_rejected() {
+        let temp = tempdir().unwrap();
+        let file = temp.path().join("missing-content.txt");
+
+        let handler = WriteFileHandler;
+        let result = handler
+            .execute(serde_json::json!({
+                "file_path": file.to_str().unwrap()
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn test_write_file_invalid_content_type_rejected() {
+        let temp = tempdir().unwrap();
+        let file = temp.path().join("bad-content-type.txt");
+
+        let handler = WriteFileHandler;
+        let result = handler
+            .execute(serde_json::json!({
+                "file_path": file.to_str().unwrap(),
+                "content": 123
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
+    }
 }

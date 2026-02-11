@@ -1132,4 +1132,50 @@ mod tests {
         let context_error = ProviderError::ContextWindowExceeded { used: 200000, limit: 128000 };
         assert!(context_error.to_string().contains("200000"));
     }
+
+    #[test]
+    fn test_handle_error_response_maps_known_types() {
+        let provider = OpenAIProvider::openai("test-key", "gpt-4o");
+
+        let auth = provider.handle_error_response(
+            401,
+            r#"{"error":{"message":"bad key","type":"invalid_api_key"}}"#,
+        );
+        assert!(matches!(auth, ProviderError::AuthError(msg) if msg == "bad key"));
+
+        let rate = provider.handle_error_response(
+            429,
+            r#"{"error":{"message":"slow down","type":"rate_limit_exceeded"}}"#,
+        );
+        assert!(matches!(rate, ProviderError::RateLimited(msg) if msg == "slow down"));
+
+        let context = provider.handle_error_response(
+            400,
+            r#"{"error":{"message":"context too long","type":"context_length_exceeded"}}"#,
+        );
+        assert!(matches!(
+            context,
+            ProviderError::ContextWindowExceeded { used: 0, limit } if limit == 128_000
+        ));
+    }
+
+    #[test]
+    fn test_handle_error_response_falls_back_for_unknown_or_plain_body() {
+        let provider = OpenAIProvider::openai("test-key", "gpt-4o");
+
+        let unknown = provider.handle_error_response(
+            418,
+            r#"{"error":{"message":"teapot","type":"something_new"}}"#,
+        );
+        assert!(matches!(
+            unknown,
+            ProviderError::ApiError { message, status_code: Some(418) } if message == "teapot"
+        ));
+
+        let plain = provider.handle_error_response(503, "upstream unavailable");
+        assert!(matches!(
+            plain,
+            ProviderError::ApiError { message, status_code: Some(503) } if message == "upstream unavailable"
+        ));
+    }
 }
