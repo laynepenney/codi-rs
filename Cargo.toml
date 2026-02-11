@@ -100,6 +100,7 @@ rmcp = { version = "0.14", features = ["client", "transport-child-process", "tra
 tempfile = "3"
 mockall = "0.13"
 criterion = { version = "0.5", features = ["async_tokio"] }
+insta = "1"
 
 [profile.release]
 opt-level = 3
