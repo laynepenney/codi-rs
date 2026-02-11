@@ -589,6 +589,7 @@ mod tests {
         assert!(matches!(result, Err(IpcClientError::Cancelled)));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_handshake_timeout() {
         // Create a client connected to a server that won't respond to handshake
@@ -633,6 +634,7 @@ mod tests {
         server_thread.join().unwrap();
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_permission_request_timeout() {
         // Test that permission request times out when no response is received
@@ -696,6 +698,7 @@ mod tests {
         server_thread.join().unwrap();
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_graceful_disconnect() {
         // Test clean disconnect during operation
