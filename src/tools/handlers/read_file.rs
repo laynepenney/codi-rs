@@ -282,10 +282,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_file_not_found() {
+        let temp = tempfile::tempdir().unwrap();
+        let missing = temp.path().join("does-not-exist.txt");
         let handler = ReadFileHandler;
         let result = handler
             .execute(serde_json::json!({
-                "file_path": "/nonexistent/path/to/file.txt"
+                "file_path": missing.to_str().unwrap()
             }))
             .await;
 

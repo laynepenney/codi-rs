@@ -68,7 +68,7 @@ mod tests {
     #[cfg(windows)]
     use crate::agent::ToolConfirmation;
     #[cfg(windows)]
-    use crate::orchestrate::types::WorkerConfig;
+    use crate::orchestrate::types::{WorkerConfig, WorkspaceInfo};
     #[cfg(windows)]
     use std::path::PathBuf;
     #[cfg(windows)]

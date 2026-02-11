@@ -299,6 +299,7 @@ mod tests {
         assert!(matches!(result, Err(IpcError::NotStarted)));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_bind_to_invalid_path() {
         let invalid_path = Path::new("/nonexistent/directory/test.sock");

@@ -290,6 +290,7 @@ mod tests {
         server_task.await.unwrap();
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_bind_to_invalid_path() {
         // Try to bind to an invalid path (non-existent parent directory that's not creatable)
