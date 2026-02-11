@@ -134,6 +134,11 @@ Best practices for multi-author commits:
 - Run all tests: `cargo test`
 - Run specific test: `cargo test test_name`
 - Run with output: `cargo test -- --nocapture`
+- Run TUI snapshot tests: `cargo test --test tui_exec_cell`
+- Optional snapshot update workflow:
+  - `cargo install cargo-insta`
+  - `cargo insta test --test tui_exec_cell`
+  - `cargo insta accept`
 
 ### Benchmarks
 
