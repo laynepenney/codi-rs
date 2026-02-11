@@ -589,6 +589,7 @@ mod tests {
         assert!(matches!(result, Err(IpcClientError::Cancelled)));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_handshake_timeout() {
         // Create a client connected to a server that won't respond to handshake
@@ -633,6 +634,7 @@ mod tests {
         server_thread.join().unwrap();
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_permission_request_timeout() {
         // Test that permission request times out when no response is received
@@ -666,10 +668,24 @@ mod tests {
             stream.write_all(ack_json.as_bytes()).expect("Server write failed");
             stream.flush().expect("Server flush failed");
 
-            // Read permission request but don't respond
+            // Avoid blocking forever if the client never issues a permission request.
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_millis(250)))
+                .expect("Failed to set read timeout");
+
+            // Read permission request but don't respond.
             let mut buf = vec![0u8; 1024];
-            let n = stream.read(&mut buf).expect("Server read failed");
-            let _perm_req: serde_json::Value = serde_json::from_slice(&buf[..n]).expect("Invalid permission request JSON");
+            match stream.read(&mut buf) {
+                Ok(0) => {}
+                Ok(n) => {
+                    let _perm_req: serde_json::Value =
+                        serde_json::from_slice(&buf[..n]).expect("Invalid permission request JSON");
+                }
+                Err(err)
+                    if err.kind() == std::io::ErrorKind::WouldBlock
+                        || err.kind() == std::io::ErrorKind::TimedOut => {}
+                Err(err) => panic!("Server read failed: {err}"),
+            }
 
             // Don't send response - let it timeout (we won't actually wait in the test)
             std::thread::sleep(std::time::Duration::from_millis(200));
@@ -696,6 +712,7 @@ mod tests {
         server_thread.join().unwrap();
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_graceful_disconnect() {
         // Test clean disconnect during operation

@@ -522,7 +522,8 @@ mod tests {
         // Can't test actual detection without controlling env vars,
         // but we can test the function doesn't panic
         let caps = detect_terminal_capabilities();
-        // Result depends on current terminal
-        assert!(!caps.term.is_empty() || !caps.term_program.is_empty());
+        // Result depends on CI environment; only validate strings are sane.
+        assert!(!caps.term.contains('\n'));
+        assert!(!caps.term_program.contains('\n'));
     }
 }

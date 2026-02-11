@@ -189,6 +189,7 @@ mod tests {
         assert!(matches!(result.unwrap_err(), ToolError::InvalidInput(_)));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_write_file_permission_denied() {
         // Create a read-only directory
@@ -197,11 +198,8 @@ mod tests {
         std::fs::create_dir(&ro_dir).unwrap();
         
         // Make directory read-only
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&ro_dir, std::fs::Permissions::from_mode(0o555)).unwrap();
-        }
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&ro_dir, std::fs::Permissions::from_mode(0o555)).unwrap();
         
         let file = ro_dir.join("test.txt");
         
@@ -215,18 +213,10 @@ mod tests {
 
         // Should fail due to permissions
         assert!(result.is_err());
-        
-        #[cfg(unix)]
-        {
-            assert!(matches!(result.unwrap_err(), ToolError::PermissionDenied(_)));
-        }
+        assert!(matches!(result.unwrap_err(), ToolError::PermissionDenied(_)));
         
         // Restore permissions for cleanup
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&ro_dir, std::fs::Permissions::from_mode(0o755));
-        }
+        let _ = std::fs::set_permissions(&ro_dir, std::fs::Permissions::from_mode(0o755));
     }
 
     #[tokio::test]
